@@ -101,16 +101,18 @@ impl LazyImage {
 }
 
 fn scrape_image(keyword: &str, config_path: Option<&Path>) -> Option<String> {
-    let config: ScraperConfig = config_path.and_then(|path| {
-        File::open(path)
-            .ok()
-            .and_then(|file| serde_json::from_reader(file).ok())
-    }).unwrap_or_else(|| {
-        let default_config_path = "scraper_config.json";
-        File::open(default_config_path)
-            .ok()
-            .and_then(|file| serde_json::from_reader(file).ok())
-    })?;
+    let config: ScraperConfig = config_path
+        .and_then(|path| {
+            File::open(path)
+                .ok()
+                .and_then(|file| serde_json::from_reader(file).ok())
+        })
+        .unwrap_or_else(|| {
+            let default_config_path = "scraper_config.json";
+            File::open(default_config_path)
+                .ok()
+                .and_then(|file| serde_json::from_reader(file).ok())
+        })?;
 
     let url = config.url_template.replace("{}", &short_name(keyword));
     let client = Client::new();
