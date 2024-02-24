@@ -9,7 +9,7 @@ use rusttype::Font;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constants::{ALLIUM_SD_ROOT, ALLIUM_FONTS_DIR, ALLIUM_STYLESHEET},
+    constants::{ALLIUM_FONTS_DIR, ALLIUM_SD_ROOT, ALLIUM_STYLESHEET},
     display::color::Color,
 };
 
@@ -366,7 +366,7 @@ rgui_particle_color = "0xFF{highlight:X}"
 
     #[inline]
     fn default_wallpaper() -> Option<PathBuf> {
-        Option::PathBuf::from(ALLIUM_SD_ROOT.join("wallpaper.png"))
+        Some(PathBuf::from(ALLIUM_SD_ROOT.join("wallpaper.png")))
     }
 }
 

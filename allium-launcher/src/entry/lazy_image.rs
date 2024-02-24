@@ -1,13 +1,18 @@
 use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::io::prelude::*;
+use serde::{Deserialize, Serialize};
+use scraper::{Html, Selector};
+use reqwest::blocking::Client;
+use regex::Regex;
+
+use crate::entry::short_name;
 
 use common::constants::ALLIUM_GAMES_DIR;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LazyImage {
-    /// Path to the file
     Unknown(PathBuf),
-    /// Path to the found image
     Found(PathBuf),
     NotFound,
 }
@@ -16,11 +21,10 @@ impl LazyImage {
     pub fn from_path(path: &Path, image: Option<PathBuf>) -> Self {
         match image {
             Some(image) => Self::Found(image),
-            _ => Self::Unknown(path.to_path_buf()),
+            None => Self::Unknown(path.to_path_buf()),
         }
     }
 
-    /// Searches for the image path, caches it, and returns it
     pub fn image(&mut self) -> Option<&Path> {
         let path = match self {
             Self::Unknown(path) => path,
@@ -30,7 +34,6 @@ impl LazyImage {
 
         const IMAGE_EXTENSIONS: [&str; 4] = ["png", "jpg", "jpeg", "gif"];
 
-        // Search for Imgs folder upwards, recursively
         let mut parent = path.clone();
         let mut image = None;
         let file_name = path.file_name().unwrap();
@@ -60,11 +63,20 @@ impl LazyImage {
             }
         }
 
-        // If it is itself an image, use that instead
         if image.is_none() {
             if let Some(ext) = path.extension().and_then(std::ffi::OsStr::to_str) {
                 if IMAGE_EXTENSIONS.contains(&ext) {
                     image = Some(path.clone());
+                }
+            }
+        }
+
+        if image.is_none() {
+            let scraper_keyword = path.file_stem().unwrap().to_string_lossy();
+            let config_path = parent.join("Imgs").with_file_name("scraper_config.json");
+            if let Some(url) = scrape_image(&scraper_keyword, Some(&config_path)) {
+                if let Some(file_name) = download_image(&url, &scraper_keyword) {
+                    image = Some(file_name);
                 }
             }
         }
@@ -88,8 +100,50 @@ impl LazyImage {
     }
 }
 
-impl From<PathBuf> for LazyImage {
-    fn from(path: PathBuf) -> Self {
-        Self::Found(path)
-    }
+fn scrape_image(keyword: &str, config_path: Option<&Path>) -> Option<String> {
+    let config: ScraperConfig = config_path.and_then(|path| {
+        File::open(path)
+            .ok()
+            .and_then(|file| serde_json::from_reader(file).ok())
+    }).unwrap_or_else(|| {
+        let default_config_path = "scraper_config.json";
+        File::open(default_config_path)
+            .ok()
+            .and_then(|file| serde_json::from_reader(file).ok())
+    })?;
+
+    let url = config.url_template.replace("{}", &short_name(keyword));
+    let client = Client::new();
+    let response = client.get(&url).send().ok()?;
+    let body = response.text().ok()?;
+    let document = Html::parse_document(&body);
+
+    let box_art_url = document
+        .select(&Selector::parse(&config.img_selector).unwrap())
+        .next()
+        .and_then(|img| img.value().attr("src"))
+        .map(|src| {
+            let re = Regex::new(&config.regex_pattern).unwrap();
+            let replaced_src = re.replace_all(src, &config.replacement_string);
+            replaced_src.into_owned()
+        });
+
+    box_art_url
+}
+
+fn download_image(url: &str, scraper_keyword: &str) -> Option<PathBuf> {
+    let client = Client::new();
+    let response = client.get(url).send().ok()?;
+    let mut file = File::create(scraper_keyword).ok()?;
+    let bytes = response.bytes().ok()?;
+    file.write_all(&bytes).ok()?;
+    Some(PathBuf::from(scraper_keyword))
+}
+
+#[derive(Deserialize)]
+struct ScraperConfig {
+    url_template: String,
+    img_selector: String,
+    regex_pattern: String,
+    replacement_string: String,
 }
