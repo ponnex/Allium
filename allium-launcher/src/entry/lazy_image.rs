@@ -1,10 +1,9 @@
-use std::path::{Path, PathBuf};
+use reqwest::blocking::Client;
+use scraper::{Html, Selector};
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::prelude::*;
-use serde::{Deserialize, Serialize};
-use scraper::{Html, Selector};
-use reqwest::blocking::Client;
-use regex::Regex;
+use std::path::{Path, PathBuf};
 
 use crate::entry::short_name;
 
