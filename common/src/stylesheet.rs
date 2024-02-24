@@ -9,7 +9,7 @@ use rusttype::Font;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constants::{ALLIUM_FONTS_DIR, ALLIUM_STYLESHEET},
+    constants::{ALLIUM_SD_ROOT, ALLIUM_FONTS_DIR, ALLIUM_STYLESHEET},
     display::color::Color,
 };
 
@@ -363,12 +363,17 @@ rgui_particle_color = "0xFF{highlight:X}"
     fn default_alt_button_y_color() -> Color {
         Color::new(148, 226, 213)
     }
+
+    #[inline]
+    fn default_wallpaper() -> Option<PathBuf> {
+        Option::PathBuf::from(ALLIUM_SD_ROOT.join("wallpaper.png"))
+    }
 }
 
 impl Default for Stylesheet {
     fn default() -> Self {
         Self {
-            wallpaper: None,
+            wallpaper: Self::default_wallpaper(),
             enable_box_art: true,
             show_battery_level: false,
             foreground_color: Self::default_foreground_color(),
