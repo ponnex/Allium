@@ -1,3 +1,4 @@
+use regex::Regex;
 use reqwest::blocking::Client;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
